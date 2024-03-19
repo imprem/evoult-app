@@ -1,0 +1,36 @@
+.custom-nv-bg-color{
+    background-color: rgb(218, 163, 45);
+}
+
+.nav-item {
+    margin-right: 20px;
+}
+
+.nav-text{
+    font-size: 20px;
+    font-weight: 500;
+}
+.logout-btna{
+    background-color: #833b0b;
+    border-radius: 20px;
+}
+.logout-btn {
+    color: #fff !important;
+    border: none;
+    padding: 7px 26px !important;
+    border-radius: 20px;
+    transition: background-color 0.3s ease;
+}
+
+.logout-btn:hover {
+    background-color: #af6a40;
+}
+
+.container1 {
+    width: 100%;
+    padding-right: 55px;
+    padding-left: 25px;
+    padding-bottom: 20px;
+    margin-right: auto;
+    margin-left: auto;
+}
