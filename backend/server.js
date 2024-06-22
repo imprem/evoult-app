@@ -3,15 +3,7 @@ const mysql = require("mysql");
 const cors = require("cors");
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
-
-// const { ethers } = require('ethers');
-// const contractABI = require('./UserRegistration.json');
-
-// const provider = new ethers.providers.JsonRpcProvider('http://localhost:8545');
-// const privateKey = 'e821e287c5fd667cba6ce22494aaa77816fbdea82b1fbf6ee391952c451fa179';
-// const contractAddress = '0xc0ED63E3A70BfCB003452B1Cc083db822e1f23e1';
-// const wallet = new ethers.Wallet(privateKey, provider);
-// const contract = new ethers.Contract(contractAddress, contractABI.abi, wallet);
+const { type } = require("os");
 
 const app = express();
 app.use(cors());
@@ -23,16 +15,6 @@ const db = mysql.createConnection({
     password: "root",
     database: "USER_DB"
 })
-
-// async function registerUser(name) {
-//     try {
-//         const transaction = await contract.registerUser(name);
-//         await transaction.wait();
-//         console.log("User registered successfully!");
-//     } catch (error) {
-//         console.error("Error registering user:", error);
-//     }
-// }
 
 //For Login
 app.post('/', async (req, res) => {
@@ -93,7 +75,6 @@ async function findPasswordByEmail(email){
 //LIST OF CLIENT
 app.post('/listofclient', (req, res) => {
     const GET_LIST_OF_CLIENTS = `SELECT u.NAME FROM USERS u INNER JOIN ROLES r ON u.ROLE_ID = r.ROLE_ID WHERE r.ROLE_ID = 2`;
-    console.log(GET_LIST_OF_CLIENTS);
     db.query(GET_LIST_OF_CLIENTS, (err, data) => {
         if (err) {
             return res.status(500).json({ error: "Error" });
@@ -197,31 +178,27 @@ app.post('/notstarted', (req, res) =>{
     })
 })
 
-//List of caseS
-app.get('/listofcases', async(req, res) => {
-    const LIST_OF_CASES = `SELECT CASE_ID, LW1.NAME AS LAWYER1_NAME,
-    LW2.NAME AS LAWYER2_NAME,
-    CL1.NAME AS CLIENT1_NAME,
-    CL2.NAME AS CLIENT2_NAME,
-    JDG.NAME AS JUDGE_NAME,
-    STA.STATUS_NAME AS CASE_STATUS,
-    JSON_OBJECT('TITLE', DOC.TITLE, 'DESCRIPTION', DOC.DESCRIPTION, 'JUDGEMENT', DOC.JUDGEMENT) AS DOC_DATA FROM CASES 
-        JOIN (SELECT * FROM USERS WHERE ROLE_ID=3 GROUP BY USER_ID) AS LW1 ON CASES.LAYWER1=LW1.USER_ID
-        JOIN (SELECT * FROM USERS WHERE ROLE_ID=3 GROUP BY USER_ID) AS LW2 ON CASES.LAYWER2=LW2.USER_ID
-        JOIN (SELECT * FROM USERS WHERE ROLE_ID=2 GROUP BY USER_ID) AS CL1 ON CASES.CLIENT1=CL1.USER_ID
-        JOIN (SELECT * FROM USERS WHERE ROLE_ID=2 GROUP BY USER_ID) AS CL2 ON CASES.CLIENT2=CL2.USER_ID
-        JOIN (SELECT * FROM USERS WHERE ROLE_ID=4 GROUP BY USER_ID) AS JDG ON CASES.JUDGE=JDG.USER_ID
-        JOIN (SELECT * FROM STATUS GROUP BY STATUS_ID) AS STA ON CASES.STATUS=STA.STATUS_ID
-        JOIN (SELECT * FROM DOCUMENTS GROUP BY DOCUMENT_ID) AS DOC ON CASES.DOCUMENT=DOC.DOCUMENT_ID`;
+//==================================================
+//**************** LIST OF CASES *******************
+//==================================================
+app.get('/listofcases', async (req, res) => {
+    const LIST_OF_CASES = `SELECT ID, TITLE FROM DOCUMENTS;`
+    try {
         db.query(LIST_OF_CASES, (err, rows) => {
-            if(err){
-                res.status(400).send({ error: true, message: 'Please provide all required field' });
+            if (err) {
+                return res.status(400).send({ error: true, message: 'Please provide all required fields' });
             }
             return res.json(rows);
-        })
-})
+        });
+    } catch (error) {
+        return res.status(500).send({ error: true, message: 'Internal Server Error' });
+    }
+});
 
 
+//==================================================
+//***************** DOWNLOAD PDF *******************
+//==================================================
 app.get('/downloadpdf', async (req, res) => {
     let id = req.query.id; 
     const LIST_OF_CASES_BY_ID = `SELECT CASE_ID, LW1.NAME AS LAWYER1_NAME,
@@ -279,14 +256,6 @@ app.get('/downloadpdf', async (req, res) => {
                 }
             });
         });
-
-        // db.end(function (err) {
-        //     if (err) {
-        //         console.error('Error closing connection: ' + err.stack);
-        //         return;
-        //     }
-        //     console.log('Connection closed.');
-        // });
     });
 });
 
@@ -310,25 +279,38 @@ app.post('/name', async (req, res) => {
     }
 })
 
-// For SignUp
+//==================================================
+//***************** FOR SIGNUP *********************
+//==================================================
 app.post('/signup', async (req, res) =>{
     let name = req.body.name;
     let gender = req.body.gender;
     let phone = req.body.phone;
     let email = req.body.email;
-    // let type = req.body.type;
+    let type = req.body.type;
     let password = req.body.password;
-    let public_address = req.body.address;
+    let public_address = req.query.address;
     let date = '2023-02-29'; // Date format should be 'YYYY-MM-DD'
     let created_by = 'Prem'; 
+
+    console.log('\n\n===============================================');
+    console.log('************* UserRegistration ****************');
+    console.log('===============================================');
+    console.log("Name : ", name);
+    console.log("Gender : ", gender);
+    console.log("Phone : ", phone);
+    console.log("Email : ", email);
+    console.log("Type : ", type);
+    console.log("Password : ", password);
+    console.log("Public Address : ", public_address);
+    console.log('Date : ', date);
+    console.log("Created By : ", created_by);
+    console.log('===============================================');
 
     try {
         const role_id = await getRoleId(req.body.type);
         const isPubKey = await isAddressExisted(public_address);
-        console.log("jjjjjjjjjjjjjjjjjjjjjjjjjjjj");
-        console.log(isPubKey);
-        console.log(public_address);
-        if(!isPubKey){
+        if(isPubKey){
             return res.status(400).json({ error: "Public address already exists" });
         }
 
@@ -346,6 +328,60 @@ app.post('/signup', async (req, res) =>{
     }
 });
 
+//==================================================
+//******** INSERT INTO DOCUMENT AND CASES **********
+//==================================================
+app.post('/documentstore', async (req, res) => {
+    let title = req.body.title;
+    let description = req.body.description;
+    let client1 = req.body.client1;
+    let client2 = req.body.client2;
+    let lawyer1 = req.body.lawyer1;
+    let lawyer2 = req.body.lawyer2;
+    let judge = req.body.judge;
+    let judgement = req.body.judgement;
+    let status = req.body.status;
+    let date = '2024-02-29'; // Fixed date format to YYYY-MM-DD
+    let created_by = 'Prem';
+
+    console.log('\n\n===============================================');
+    console.log('************** DocumentStorage ****************');
+    console.log('===============================================');
+    console.log("Title :", title);
+    console.log("Description", description);
+    console.log("client1", client1);
+    console.log("client2", client2);
+    console.log("lawyer1", lawyer1);
+    console.log("lawyer2", lawyer2);
+    console.log("judge", judge);
+    console.log("Status : ", status);
+    console.log("judgement : ", judgement);
+    console.log('Date : ', date);
+    console.log("Created By : ", created_by);
+    console.log('===============================================');
+
+    try {
+        let status_id = await getStatusIdByName(status);
+        let lawyer1Id = await getLawyerIdByName(lawyer1);
+        let lawyer2Id = await getLawyerIdByName(lawyer2);
+        let client1Id = await getLawyerIdByName(client1);
+        let client2Id = await getLawyerIdByName(client2);
+        let judgeId = await getLawyerIdByName(judge);
+
+        let doc_id = await insertIntoDocument(title, description, judgement, date, created_by);
+        const INSERT_INTO_CASE = `INSERT INTO CASES(LAYWER1, LAYWER2, CLIENT1, CLIENT2, JUDGE, STATUS, DOCUMENT, CREATED_DATE, CREATED_BY) VALUES(${lawyer1Id}, ${lawyer2Id}, ${client1Id}, ${client2Id}, ${judgeId}, ${status_id}, ${doc_id}, '${date}', '${created_by}')`;
+
+        db.query(INSERT_INTO_CASE, async (err, data) => {
+            if (err) {
+                return res.json("Error");
+            }
+            return res.json(data);
+        });
+    } catch (error) {
+        console.error("Error processing request:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
 
 async function isAddressExisted(pub_key){
     const GET_USER_ID = `SELECT USER_ID FROM USERS WHERE PUBLIC_ADDRESS = ?`;
@@ -377,58 +413,13 @@ async function getRoleId(role_name) {
     });
 }
 
-//INSERT INTO DOCUMENT AND CASES
-app.post('/documentstore', async (req, res) => {
-    let title = req.body.title;
-    let description = req.body.description;
-    let client1 = req.body.client1;
-    let client2 = req.body.client2;
-    let lawyer1 = req.body.lawyer1;
-    let lawyer2 = req.body.lawyer2;
-    let judge = req.body.judge;
-    let judgement = req.body.judgement;
-    let status = req.body.status;
-    let date = '2024-02-29'; // Fixed date format to YYYY-MM-DD
-    let created_by = 'Prem';
-
-    console.log("===================");
-    console.log("lawyer1", lawyer1);
-    console.log("lawyer2", lawyer2);
-    console.log("client1", client1);
-    console.log("client2", client2);
-    console.log("judge", judge);
-    console.log();
-    console.log("===================");
-
-    let status_id = await getStatusIdByName(status);
-    let getLawyer1Id = await getLawyerIdByName(lawyer1);
-    let getLawyer2Id = await getLawyerIdByName(lawyer2);
-    let getClient1Id = await getLawyerIdByName(client1);
-    let getClient2Id = await getLawyerIdByName(client2);
-    let getJudgeId = await getLawyerIdByName(judge);
-
-    let doc_id = await insertIntoDocument(title, description, judgement, date, created_by);
-    const INSERT_INTO_CASE = `INSERT INTO CASES(LAYWER1, LAYWER2, CLIENT1, CLIENT2, JUDGE, STATUS, DOCUMENT, CREATED_DATE, CREATED_BY) VALUES(${getLawyer1Id}, ${getLawyer2Id}, ${getClient1Id}, ${getClient2Id}, ${getJudgeId}, ${status_id}, ${doc_id}, '${date}', '${created_by}')`;
-
-    db.query(INSERT_INTO_CASE, async (err, data) => {
-        if (err) {
-            console.error(err);
-            return res.json("Error");
-        }
-        console.log('Case Inserted', data.insertId);
-        return res.json(data);
-    });
-});
-
 async function insertIntoDocument(title, description, judgement, date, created_by) {
     return new Promise((resolve, reject) => {
         const INSERT_INTO_DOCUMENT = `INSERT INTO DOCUMENTS(TITLE, DESCRIPTION, JUDGEMENT, CREATED_DATE, CREATED_BY) VALUES('${title}', '${description}', '${judgement}', '${date}', '${created_by}')`;
         db.query(INSERT_INTO_DOCUMENT, (err, data) => {
             if (err) {
-                console.error(err);
                 reject(err);
             } else {
-                console.log('Document Inserted', data.insertId);
                 resolve(data.insertId);
             }
         });
@@ -438,15 +429,11 @@ async function insertIntoDocument(title, description, judgement, date, created_b
 async function getStatusIdByName(name){
     let name1 = `"${name}"`;
     const GET_STATUS_ID = `SELECT STATUS_ID FROM STATUS WHERE STATUS_NAME = ${name1}`;
-    console.log("qqqqqqqq",name1)
-    console.log(GET_STATUS_ID)
     return new Promise((resolve, reject) => {
         db.query(GET_STATUS_ID, (err, rows) => {
             if(err){
-                console.log('Eror in getStatusIdByName', err);
                 reject(err);
             } else {
-                console.log('GET_STATUS_ID', rows[0]);
                 resolve(rows[0].STATUS_ID);
             }
         })
@@ -456,13 +443,11 @@ async function getStatusIdByName(name){
 async function getLawyerIdByName(name){
     let name1 = `"${name}"`;
     const GET_USER_ID = `SELECT USER_ID FROM USERS WHERE NAME = ${name1}`;
-    console.log('GET_USER_ID', GET_USER_ID);
     return new Promise((resolve, reject) => {
         db.query(GET_USER_ID, (err, rows) => {
             if(err){
                 reject(err);
             } else {
-                console.log('GET_USER_ID', rows[0].USER_ID);
                 resolve(rows[0].USER_ID);
             }
         })

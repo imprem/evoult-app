@@ -65,18 +65,18 @@ function Home() {
  
       axios.get('http://localhost:3051/listofcases')
       .then(response => {
+        console.log("========>>", response.data);
         setListOfDocumnet(response.data);
-        console.log(listOfDocument);
       })
       .catch(error => {
         console.error('Error:', error);
       });
   }, []);
 
-  useEffect(() => {
-    console.log(listOfDocument);
-  }, [listOfDocument]);
-
+  // useEffect(() => {
+  //   console.log("%%%%%%%%%%%",listOfDocument);
+  // }, [listOfDocument]);
+  console.log("===>>",listOfDocument);
   return (
     <div className="container">
       <div className='con-down'>
@@ -151,12 +151,12 @@ function Home() {
               </thead>
               <tbody>
                 {listOfDocument.map((user, index) => {
-                  const docData = JSON.parse(user.DOC_DATA);
+                  // const docData = JSON.parse(user.DOC_DATA);
                   return (
                     <tr key={index}>
-                      <td>{user.CASE_ID}</td>
-                      <td>{docData.TITLE}</td>
-                      <td><a href={`http://localhost:3051/downloadpdf?id=${user.CASE_ID}`}>Download</a></td>
+                      <td>{user.ID}</td>
+                      <td>{user.TITLE}</td>
+                      <td><a href={`http://localhost:3051/downloadpdf?id=${user.ID}`}>Download</a></td>
                     </tr>
                   )
                 })}

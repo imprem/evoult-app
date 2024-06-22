@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import Swal from "sweetalert2";
 import axios from "axios";
+import Web3 from 'web3';
 import ContractAbi from "../../UserRegistration.json";
 const ethers = require("ethers");
 
@@ -13,10 +14,9 @@ function Signup() {
         email: "",
         type: "",
         password: "",
-        address: "",
+        address: ""
     });
 
-    const navigate = useNavigate();
     const handleInput = (event) => {
         setValues((prev) => ({
             ...prev,
@@ -24,60 +24,69 @@ function Signup() {
         }));
     };
 
-    useEffect(() => {
-        if (window.ethereum && window.ethereum.selectedAddress) {
-            const selectedAddress = window.ethereum.selectedAddress;
-            console.log(`Connected to MetaMask with address: ${selectedAddress}`);
-        } else {
-            console.log('MetaMask is not connected');
-        }
-    }, []);
-
-    async function eth_call() {
-        if (typeof window.ethereum !== "undefined") {
-            try {
-                const accounts = await window.ethereum.request({
-                    method: "eth_requestAccounts",
-                });
-                const address = accounts[0];
-                console.log("Ethereum address:", address);
-                setValues((prev) => ({ ...prev, address: address }));
-            } catch (error) {
-                console.error(error);
-            }
-        } else {
-            console.error("MetaMask is not installed");
-        }
-    }
-
     const handleSubmit = async (event) => {
         event.preventDefault();
-        await eth_call();
+        // const userData = {...values};
+        let userData = "";
+        console.log("User Data only with VAlue ", userData)
+
+        if (typeof window.ethereum !== 'undefined') {
+            try {
+                // Request account access if needed
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                const web3 = new Web3(window.ethereum);
+                const accounts = await web3.eth.getAccounts();
+                const userAddress = accounts[0];
+                userData = userAddress;
+                console.log("=========>")
+                console.log("=========>", userAddress)
+                // userData = { ...values, address: userAddress };
+                console.log("User Data only with VAlue and address ", userData)
+                console.log('MetaMask is connected!');
+                // Perform your form submission logic here
+            } catch (error) {
+                console.error('User rejected the request or MetaMask is not installed', error);
+            }
+        } else {
+            alert('MetaMask is not installed. Please install it to use this feature.');
+        }
 
         try {
-            // const contractAddress = "0xa50a51c09a5c451C52BB714527E1974b686D8e77";
-            console.log("Address ", process.env.REACT_APP_USER_REGISTRATION_CONTRACT_ADDRESS);
             if (window.ethereum) {
                 const provider = new ethers.providers.Web3Provider(window.ethereum);
                 const signer = provider.getSigner(); 
+                console.log("Nmae : ", values.name[0]);
                 const userContract = new ethers.Contract(process.env.REACT_APP_USER_REGISTRATION_CONTRACT_ADDRESS, ContractAbi.abi, signer);
-                const tx = userContract.registerUser(values.name[0]);
-                console.log("User registered ", tx);
-
-                //   Calling si
-                axios
-                    .post("http://localhost:3051/signup", values)
-                    .then((res) => {
-                        window.location.href = "/";
-                    })
-                    .catch((err) => {
-                        Swal.fire({
-                            title: "Oops...",
-                            text: err.response.data.error,
-                            icon: "error",
-                            confirmButtonText: "OK",
+                const tx = await userContract.registerUser(values.name[0]);
+                console.log("User registered ", tx.hash);
+    
+                // Listen for transaction confirmation
+                provider.once(tx.hash, (receipt) => {
+                    console.log("Transaction confirmed: ", receipt);
+                    // Make axios call only if transaction is confirmed
+                    console.log("Account for query ", userData);
+                    axios
+                        .post(`http://localhost:3051/signup?address=${userData}`, values)
+                        .then((res) => {
+                            window.location.href = "/";
+                        })
+                        .catch((err) => {
+                            Swal.fire({
+                                title: "Oops...",
+                                text: err.response.data.error,
+                                icon: "error",
+                                confirmButtonText: "OK",
+                            });
                         });
-                    });
+                });
+    
+                // Show a message to the user that transaction is pending
+                Swal.fire({
+                    title: "Transaction pending",
+                    text: "Please wait for the transaction confirmation in MetaMask.",
+                    icon: "info",
+                    confirmButtonText: "OK",
+                });
             } else {
                 console.error(
                     'MetaMask not found. Please install MetaMask to use this application.',
@@ -87,7 +96,7 @@ function Signup() {
             console.log(error);
         }
     };
-
+    
     return (
         <div className="d-flex justify-content-center align-items-center custom-bg-color vh-100">
             <div className="custom-bg-white p-3 rounded w-50">
@@ -177,15 +186,6 @@ function Signup() {
                             id="email"
                         />
                     </div>
-                    {/* <div className="mb-3">
-                        <label htmlFor="type" className="form-label">Type</label>
-                        <select name="type" id="type" onChange={handleInput} className='form-select'>
-                            <option value="admin">Admin</option>
-                            <option value="client">Client</option>
-                            <option value="lawyer">Lawyer</option>
-                            <option value="judge">Judge</option>
-                        </select>
-                    </div> */}
                     <div className="mb-3">
                         <label htmlFor="type" className="form-label">
                             Type
