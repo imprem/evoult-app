@@ -4,6 +4,7 @@ const cors = require("cors");
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const { type } = require("os");
+const { DESTRUCTION } = require("dns/promises");
 
 const app = express();
 app.use(cors());
@@ -16,8 +17,11 @@ const db = mysql.createConnection({
     database: "USER_DB"
 })
 
-//For Login
+//==============================================
+//**************** FOR LOGIN *******************
+//==============================================
 app.post('/', async (req, res) => {
+    console.log('\n\n######### Inside Login ##########');
     try {
         const isEmailExist = await findEmailByEmail(req.body.email);
         if (isEmailExist) {
@@ -38,7 +42,6 @@ app.post('/', async (req, res) => {
 async function findEmailByEmail(email){
     let email1 = `"${email}"`;
     const FIND_EMAIL_IN_USERS = `SELECT EMAIL FROM USERS WHERE EMAIL = ${email1};`;
-    console.log("SQLLQLQLQL ", FIND_EMAIL_IN_USERS);
     return new Promise((resolve, reject) => {
         db.query(FIND_EMAIL_IN_USERS, (err, rows) => {
             if(err){
@@ -137,7 +140,6 @@ app.post('/numberofjudge', (req, res) =>{
         if(err){
             return res.status(500).json({ error: "Error" });
         }
-        console.log(data[0].NUM);
         return res.json(data[0].NUM);
     })
 })
@@ -149,7 +151,6 @@ app.post('/inprogressstatus', (req, res) =>{
         if(err){
             return res.status(500).json({ error: "Error" });
         }
-        console.log(data[0].NUM);
         return res.json(data[0].NUM);
     })
 })
@@ -161,7 +162,6 @@ app.post('/completedstatus', (req, res) =>{
         if(err){
             return res.status(500).json({ error: "Error" });
         }
-        console.log(data[0].NUM);
         return res.json(data[0].NUM);
     })
 })
@@ -173,7 +173,6 @@ app.post('/notstarted', (req, res) =>{
         if(err){
             return res.status(500).json({ error: "Error" });
         }
-        console.log(data[0].NUM);
         return res.json(data[0].NUM);
     })
 })
@@ -196,25 +195,31 @@ app.get('/listofcases', async (req, res) => {
 });
 
 
-//==================================================
-//***************** DOWNLOAD PDF *******************
-//==================================================
+//==============================================
+//***************** DOWNLOAD PDF ***************
+//==============================================
 app.get('/downloadpdf', async (req, res) => {
-    let id = req.query.id; 
-    const LIST_OF_CASES_BY_ID = `SELECT CASE_ID, LW1.NAME AS LAWYER1_NAME,
-    LW2.NAME AS LAWYER2_NAME,
-    CL1.NAME AS CLIENT1_NAME,
-    CL2.NAME AS CLIENT2_NAME,
-    JDG.NAME AS JUDGE_NAME,
-    STA.STATUS_NAME AS CASE_STATUS,
-    JSON_OBJECT('TITLE', DOC.TITLE, 'DESCRIPTION', DOC.DESCRIPTION, 'JUDGEMENT', DOC.JUDGEMENT) AS DOC_DATA FROM CASES 
-        JOIN (SELECT * FROM USERS WHERE ROLE_ID=3 GROUP BY USER_ID) AS LW1 ON CASES.LAYWER1=LW1.USER_ID
-        JOIN (SELECT * FROM USERS WHERE ROLE_ID=3 GROUP BY USER_ID) AS LW2 ON CASES.LAYWER2=LW2.USER_ID
-        JOIN (SELECT * FROM USERS WHERE ROLE_ID=2 GROUP BY USER_ID) AS CL1 ON CASES.CLIENT1=CL1.USER_ID
-        JOIN (SELECT * FROM USERS WHERE ROLE_ID=2 GROUP BY USER_ID) AS CL2 ON CASES.CLIENT2=CL2.USER_ID
-        JOIN (SELECT * FROM USERS WHERE ROLE_ID=4 GROUP BY USER_ID) AS JDG ON CASES.JUDGE=JDG.USER_ID
-        JOIN (SELECT * FROM STATUS GROUP BY STATUS_ID) AS STA ON CASES.STATUS=STA.STATUS_ID
-        JOIN (SELECT * FROM DOCUMENTS GROUP BY DOCUMENT_ID) AS DOC ON CASES.DOCUMENT=DOC.DOCUMENT_ID WHERE CASES.CASE_ID = ${id}`;
+    console.log('######## Inside Download Pdf ########');
+    let id = req.query.id;
+    const LIST_OF_CASES_BY_ID = `SELECT 
+        L1.NAME AS LAYWER1_NAME,
+        L2.NAME AS LAYWER2_NAME,
+        C1.NAME AS CLIENT1_NAME,
+        C2.NAME AS CLIENT2_NAME,
+        J.NAME AS JUDGE_NAME,
+        S.STATUS_NAME AS STATUS,
+        D.TITLE,
+        D.DESCRIPTION,
+        D.JUDGEMENT
+    FROM CASES C
+    JOIN USERS L1 ON C.LAYWER1 = L1.USER_ID
+    JOIN USERS L2 ON C.LAYWER2 = L2.USER_ID
+    JOIN USERS C1 ON C.CLIENT1 = C1.USER_ID
+    JOIN USERS C2 ON C.CLIENT2 = C2.USER_ID
+    JOIN USERS J ON C.JUDGE = J.USER_ID
+    JOIN STATUS S ON C.STATUS = S.STATUS_ID
+    JOIN DOCUMENTS D ON C.DOCUMENT = D.ID
+    WHERE C.CASE_ID = ${id}`;
 
     db.query(LIST_OF_CASES_BY_ID, function (error, results, fields) {
         if (error) {
@@ -223,27 +228,58 @@ app.get('/downloadpdf', async (req, res) => {
             return;
         }
 
+        if (!results || results.length === 0) {
+            res.status(404).send({ error: true, message: 'No results found' });
+            return;
+        }
+
         const doc = new PDFDocument();
         const stream = fs.createWriteStream('output.pdf');
         doc.pipe(stream);
 
         results.forEach(row => {
-            // doc.text(JSON.stringify(row));
-            const { TITLE, CLIENT1_NAME, CLIENT2_NAME, LAWYER1_NAME, LAWYER2_NAME, JUDGE_NAME, DOC_DATA } = row;
-            const DOC_DATA1 = JSON.parse(DOC_DATA);
-            console.log("DOC_data 1", DOC_DATA1);
+            const { TITLE, CLIENT1_NAME, CLIENT2_NAME, LAYWER1_NAME, LAYWER2_NAME, JUDGE_NAME, STATUS, DESCRIPTION, JUDGEMENT } = row;
+            let docData;
+            try {
+                docData = JSON.parse(JUDGEMENT); // Ensure the field you are parsing is correct
+            } catch (parseError) {
+                console.error('Error parsing JUDGEMENT as JSON: ' + parseError.message);
+                docData = { TITLE: TITLE, JUDGEMENT: JUDGEMENT };
+            }
 
-            doc.text(`Title: ${DOC_DATA1.TITLE}`);
-            doc.text(`Client 1: ${CLIENT1_NAME}`);
-            doc.text(`Client 2: ${CLIENT2_NAME}`);
-            doc.text(`Lawyer 1: ${LAWYER1_NAME}`);
-            doc.text(`Lawyer 2: ${LAWYER2_NAME}`);
-            doc.text(`Judge: ${JUDGE_NAME}`);
-            doc.text(`Judgement: ${DOC_DATA1.JUDGEMENT}`);
+            console.log("DOC_data ", docData);
             
-            // Add spacing between entries
-            doc.moveDown();
-            //  format the data
+            const pageWidth = doc.page.width;
+            const imageWidth = 50;
+            doc.image(`./asset/ashoka.png`, (pageWidth - imageWidth) / 2, doc.y, { fit: [imageWidth, 50] });
+            doc.moveDown(1);
+            
+            doc.fontSize(15).font('Helvetica-Bold').text(`TITLE`, { continued: false })
+            doc.fontSize(15).font('Helvetica').text(docData.TITLE || TITLE);
+            doc.moveDown(0.5);
+            doc.fontSize(15).font('Helvetica-Bold').text(`Client 1`, { continued: false })
+            doc.fontSize(15).font('Helvetica').text(CLIENT1_NAME);
+            doc.moveDown(0.5);
+            doc.fontSize(15).font('Helvetica-Bold').text(`JUDGE`, { continued: false })
+            doc.fontSize(15).font('Helvetica').text(JUDGE_NAME);
+            doc.moveDown(0.5);
+            doc.fontSize(15).font('Helvetica-Bold').text(`Client 2`, { continued: false })
+            doc.fontSize(15).font('Helvetica').text(CLIENT2_NAME);
+            doc.moveDown(0.5);
+            doc.fontSize(15).font('Helvetica-Bold').text(`LAWYER 1`, { continued: false })
+            doc.fontSize(15).font('Helvetica').text(LAYWER1_NAME);
+            doc.moveDown(0.5);
+            doc.fontSize(15).font('Helvetica-Bold').text(`LAWYER 2`, { continued: false })
+            doc.fontSize(15).font('Helvetica').text(LAYWER2_NAME);
+            doc.moveDown(0.5);
+            doc.fontSize(15).font('Helvetica-Bold').text(`STATUS`, { continued: false })
+            doc.fontSize(15).font('Helvetica').text(STATUS);
+            doc.moveDown(0.5);
+            doc.fontSize(15).font('Helvetica-Bold').text(`DESCRIPTION`, { continued: false })
+            doc.fontSize(15).font('Helvetica').text(DESCRIPTION);
+            doc.moveDown(0.5);
+            doc.fontSize(15).font('Helvetica-Bold').text(`JUDGEMENT`, { continued: false })
+            doc.fontSize(15).font('Helvetica').text(docData.JUDGEMENT || JUDGEMENT);
         });
 
         doc.end();
@@ -269,7 +305,6 @@ app.post('/name', async (req, res) => {
                 if(err){
                     reject(err);
                 } else {
-                    console.log("rows[0].NAME", rows[0].NAME)
                     resolve(rows[0].NAME);
                 }
             })
@@ -305,7 +340,6 @@ app.post('/signup', async (req, res) =>{
     console.log("Public Address : ", public_address);
     console.log('Date : ', date);
     console.log("Created By : ", created_by);
-    console.log('===============================================');
 
     try {
         const role_id = await getRoleId(req.body.type);
@@ -358,7 +392,6 @@ app.post('/documentstore', async (req, res) => {
     console.log("judgement : ", judgement);
     console.log('Date : ', date);
     console.log("Created By : ", created_by);
-    console.log('===============================================');
 
     try {
         let status_id = await getStatusIdByName(status);
