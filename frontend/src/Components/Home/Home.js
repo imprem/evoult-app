@@ -80,7 +80,7 @@ function Home() {
   return (
     <div className="container">
       <div className='con-down'>
-        <h1 className="mt-2 mb-5 title">Dashboard</h1>
+        <h1 className="mt-2 mb-3 title">Dashboard</h1>
         <div className="row mb-4 mx-3">
           <div className="col-md-4">
             <div className="card">
@@ -134,7 +134,7 @@ function Home() {
           </div>
         </div>
         <div className='text-center mt-2'>
-          <h2>Case Details</h2>
+          <h2 className='case_heading'>Case Details</h2>
           <div className="table-responsive">
             <table className='table table-bordered'>
               <colgroup>
@@ -155,7 +155,7 @@ function Home() {
                   return (
                     <tr key={index}>
                       <td>{user.ID}</td>
-                      <td>{user.TITLE}</td>
+                      <td align='left'>{user.TITLE}</td>
                       <td><a href={`http://localhost:3051/downloadpdf?id=${user.ID}`}>Download</a></td>
                     </tr>
                   )

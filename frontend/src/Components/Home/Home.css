@@ -5,6 +5,8 @@
 .title{
     text-align: center;
     padding-top: 20px;
+    font-family: 'Times New Roman', Times, serif;
+    font-weight: 550;
 }
 
 .container{
@@ -32,4 +34,11 @@
     top: 0;
     background-color: #fff; /* Adjust as needed */
     z-index: 1;
-  }
+}
+
+.case_heading {
+    margin-top: 30px;
+    margin-bottom: 30px;
+    font-family: 'Times New Roman', Times, serif;
+    font-weight: 550;
+}
