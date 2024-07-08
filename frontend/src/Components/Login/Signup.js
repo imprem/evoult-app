@@ -60,24 +60,33 @@ function Signup() {
                 const tx = await userContract.registerUser(values.name[0]);
                 console.log("User registered ", tx.hash);
     
+                console.log("Account for query ", userData);
+                axios
+                    .post(`http://localhost:3051/signup?address=${userData}`, values)
+                    .then((res) => {
+                        window.location.href = "/";
+                    })
+                    .catch((err) => {
+                        console.log(err);
+                    });
                 // Listen for transaction confirmation
                 provider.once(tx.hash, (receipt) => {
                     console.log("Transaction confirmed: ", receipt);
                     // Make axios call only if transaction is confirmed
-                    console.log("Account for query ", userData);
-                    axios
-                        .post(`http://localhost:3051/signup?address=${userData}`, values)
-                        .then((res) => {
-                            window.location.href = "/";
-                        })
-                        .catch((err) => {
-                            Swal.fire({
-                                title: "Oops...",
-                                text: err.response.data.error,
-                                icon: "error",
-                                confirmButtonText: "OK",
-                            });
-                        });
+                    // console.log("Account for query ", userData);
+                    // axios
+                    //     .post(`http://localhost:3051/signup?address=${userData}`, values)
+                    //     .then((res) => {
+                    //         window.location.href = "/";
+                    //     })
+                    //     .catch((err) => {
+                    //         Swal.fire({
+                    //             title: "Oops...",
+                    //             text: err.response.data.error,
+                    //             icon: "error",
+                    //             confirmButtonText: "OK",
+                    //         });
+                    //     });
                 });
     
                 // Show a message to the user that transaction is pending

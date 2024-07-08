@@ -194,6 +194,41 @@ app.get('/listofcases', async (req, res) => {
     }
 });
 
+app.get('/listofcasesbyid', async (req, res) => {
+    // let id = req.query.id;
+    console.log("AAAAAAAAAAAAAAAAAAA");
+    const LIST_OF_CASE_INFO_BY_ID = `SELECT 
+	L1.NAME AS LAYWER1_NAME, 
+	L2.NAME AS LAYWER2_NAME, 
+	C1.NAME AS CLIENT1_NAME, 
+	C2.NAME AS CLIENT2_NAME, 
+	J.NAME AS JUDGE_NAME, 
+	S.STATUS_NAME AS STATUS,
+	D.TITLE,
+    D.DESCRIPTION,
+    D.JUDGEMENT
+	FROM CASES C
+	JOIN USERS L1 ON C.LAYWER1 = L1.USER_ID
+    JOIN USERS L2 ON C.LAYWER2 = L2.USER_ID
+    JOIN USERS C1 ON C.CLIENT1 = C1.USER_ID
+    JOIN USERS C2 ON C.CLIENT2 = C2.USER_ID
+    JOIN USERS J ON C.JUDGE = J.USER_ID
+    JOIN STATUS S ON C.STATUS = S.STATUS_ID
+    JOIN DOCUMENTS D ON C.DOCUMENT = D.ID
+    WHERE D.ID = 1`;
+
+    // WHERE D.ID = ${id}`;
+    db.query(LIST_OF_CASE_INFO_BY_ID, function (error, results) {
+        try{
+            if (error) {
+                return res.status(400).send({ error: true, message: 'Please provide all required fields' });
+            }
+            return res.json(results);
+        }catch(error){
+            return res.status(500).send({ error: true, message: 'Internal Server Error' }); 
+        }
+    });
+});
 
 //==============================================
 //***************** DOWNLOAD PDF ***************
@@ -403,7 +438,6 @@ app.post('/documentstore', async (req, res) => {
 
         let doc_id = await insertIntoDocument(title, description, judgement, date, created_by);
         const INSERT_INTO_CASE = `INSERT INTO CASES(LAYWER1, LAYWER2, CLIENT1, CLIENT2, JUDGE, STATUS, DOCUMENT, CREATED_DATE, CREATED_BY) VALUES(${lawyer1Id}, ${lawyer2Id}, ${client1Id}, ${client2Id}, ${judgeId}, ${status_id}, ${doc_id}, '${date}', '${created_by}')`;
-
         db.query(INSERT_INTO_CASE, async (err, data) => {
             if (err) {
                 return res.json("Error");
@@ -415,6 +449,87 @@ app.post('/documentstore', async (req, res) => {
         res.status(500).json({ error: "Internal server error" });
     }
 });
+
+app.get('/getdocumentid', async (req, res) => {
+    let id = req.query.id;
+    console.log("#### ID : ", id);
+
+    const GET_DOCUMENT_ID_BY_ID = `SELECT DOCUMENT_ID FROM DOCUMENTS WHERE ID = ${id}`;
+    console.log(GET_DOCUMENT_ID_BY_ID);
+    db.query(GET_DOCUMENT_ID_BY_ID, (err, data) => {
+        if(err){
+            return res.status(500).json({ error: "Error" });
+        }
+        return res.json(data[0].DOCUMENT_ID);
+    })
+
+})
+
+//==================================================
+//******** UPDATE INTO DOCUMENT AND CASES **********
+//==================================================
+app.post('/updatedocument', async (req, res) => {
+    let title = req.body.title;
+    let description = req.body.description;
+    let judgement = req.body.judgement;
+    let status = req.body.status;
+    let id = req.query.id;
+
+    console.log('\n\n===============================================');
+    console.log('************** DocumentStorage ****************');
+    console.log('===============================================');
+    console.log("Title :", title);
+    console.log("Description", description);
+    console.log("Status : ", status);
+    console.log("judgement : ", judgement);
+    console.log("Document_id : ", id);
+
+    try{
+        let status_id = await getStatusIdByName(status);
+        await updateDocumentById(title, description, judgement, id);
+        await updateCaseStatusId(status_id, id)
+    }catch(error){
+        console.error("Error processing request:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+
+});
+
+async function updateDocumentById(title, description, judgement, id){
+    const UPDATE_DOCUMENT_BY_ID = `UPDATE DOCUMENTS SET TITLE = ?, DESCRIPTION = ?, JUDGEMENT = ? WHERE ID = ?`;
+    console.log(`SQL Query: ${UPDATE_DOCUMENT_BY_ID}`);
+    console.log(`Values: title=${title}, description=${description}, id=${id}`);
+
+    return new Promise((resolve, reject) => {
+        db.query(UPDATE_DOCUMENT_BY_ID, [title, description, judgement, id], (err, rows) => {
+            if (err) {
+                console.error(`Error executing query: ${err.message}`);
+                reject(err);
+            } else {
+                console.log(`Query executed successfully, affected rows: ${rows.affectedRows}`);
+                resolve(rows);
+            }
+        });
+    });
+}
+
+async function updateCaseStatusId(status_id, id){
+    const UPDATE_CASE_STATUS_ID = `UPDATE CASES SET STATUS = ? WHERE DOCUMENT = ?`;
+    console.log(`SQL Query: ${UPDATE_CASE_STATUS_ID}`);
+    console.log(`Values: STATUS_ID=${status_id}, id=${id}`);
+
+    return new Promise((resolve, reject) => {
+        db.query(UPDATE_CASE_STATUS_ID, [status_id, id], (err, rows) => {
+            if (err) {
+                console.error(`Error executing query: ${err.message}`);
+                reject(err);
+            } else {
+                console.log(`Query executed successfully, affected rows: ${rows.affectedRows}`);
+                resolve(rows);
+            }
+        });
+    });
+}
 
 async function isAddressExisted(pub_key){
     const GET_USER_ID = `SELECT USER_ID FROM USERS WHERE PUBLIC_ADDRESS = ?`;

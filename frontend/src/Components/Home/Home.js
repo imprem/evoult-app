@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import {  useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './Home.css';
 
@@ -11,7 +12,10 @@ function Home() {
   const [numberOfJudge, setNumberOfJudge] = useState(0); 
   const [numberOfLawyer, setNumberOfLawyer] = useState(0);
   const [listOfDocument, setListOfDocumnet] = useState([]);
-  const [users, setUsers] = useState([]);
+  const [caseInfo, setCaseInfo] = useState(null);
+  // const [selectedId, setSelectedId] = useState(null);
+  // const [users, setUsers] = useState([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     axios.post('http://localhost:3051/numberofclent')
@@ -65,7 +69,6 @@ function Home() {
  
       axios.get('http://localhost:3051/listofcases')
       .then(response => {
-        console.log("========>>", response.data);
         setListOfDocumnet(response.data);
       })
       .catch(error => {
@@ -73,10 +76,23 @@ function Home() {
       });
   }, []);
 
-  // useEffect(() => {
-  //   console.log("%%%%%%%%%%%",listOfDocument);
-  // }, [listOfDocument]);
-  console.log("===>>",listOfDocument);
+  function getcaseById(id){
+    axios.get(`http://localhost:3051/listofcasesbyid?id=${id}`)
+    .then(response => {
+      setCaseInfo(response.data);
+      navigate('/casedtailsid', { state: { caseInfo: response.data, id } });
+    })
+    .catch(error => {
+      console.error('Error: ', error);
+    });
+  }
+
+  const handleEdit = (id) => {
+    console.log(id);
+    // navigate('/casedtailsid');
+    getcaseById(id);
+  };
+
   return (
     <div className="container">
       <div className='con-down'>
@@ -139,13 +155,15 @@ function Home() {
             <table className='table table-bordered'>
               <colgroup>
                 <col style={{ width: '10%' }} /> {/* Setting width of the first column to 10% */}
-                <col style={{ width: '70%' }} />
-                <col style={{ width: '20%' }} />
+                <col style={{ width: '65%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '10%' }} />
               </colgroup>
               <thead className="sticky-header">
                 <tr>
                   <th>Id</th>
                   <th>Title</th>
+                  <th></th>
                   <th></th>
                 </tr>
               </thead>
@@ -156,7 +174,8 @@ function Home() {
                     <tr key={index}>
                       <td>{user.ID}</td>
                       <td align='left'>{user.TITLE}</td>
-                      <td><a href={`http://localhost:3051/downloadpdf?id=${user.ID}`}>Download</a></td>
+                      <td><button type='button' className="btn btn-info" onClick={() => window.location.href = `http://localhost:3051/downloadpdf?id=${user.ID}`}>Download</button></td>
+                      <td><button type="button" className="btn btn-info" onClick={() => handleEdit(user.ID)}>Edit</button></td>
                     </tr>
                   )
                 })}

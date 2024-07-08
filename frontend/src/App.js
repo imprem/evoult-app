@@ -6,6 +6,7 @@ import Signup from './Components/Login/Signup';
 import Home from './Components/Home/Home';
 import Navbar from './Components/Navbar/Navbar';
 import Register from './Components/Registercase/Register';
+import Casedetails from './Components/Home/Casedetails';
 
 function App() {
   return (
@@ -32,6 +33,18 @@ function App() {
                 <Navbar />
                 <div className='container'>
                   <Register />
+                </div>
+              </>
+            }
+          />
+          <Route 
+            path='/casedtailsid'
+            element={
+              <>
+                <Navbar />
+                <div className='container'>
+                  <Casedetails />
+                  {/* <Register /> */}
                 </div>
               </>
             }

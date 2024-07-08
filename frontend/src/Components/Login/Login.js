@@ -10,8 +10,22 @@ function Login() {
         password: ''
     });
 
+    // useEffect(() => {
+    //     if (typeof window.ethereum !== 'undefined') {
+    //         try {
+    //           const accounts =  window.ethereum.request({
+    //             method: 'eth_requestAccounts'
+    //           });
+    //           window.$metaAddress = accounts[0];
+    //         } catch (error) {
+    //           console.error(error);
+    //         }
+    //       } else {
+    //         console.error('MetaMask is not installed');
+    //     }
+    // })
+
     const navigate = useNavigate();
-    
     const handleInput = (event) => {
         setValues(prev => ({...prev, [event.target.name]: event.target.value}));
     };

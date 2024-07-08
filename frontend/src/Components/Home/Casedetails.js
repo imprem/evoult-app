@@ -1,15 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import './register.css';
-import axios from 'axios';
+import {React, useState, useEffect} from "react";
+import { useLocation, useNavigate } from 'react-router-dom';
+import './Casedetails.css';
 import Swal from 'sweetalert2';
+import axios from 'axios';
 import DocumentStorageAbi from '../../contract/DocumentStorage.json';
 const ethers = require('ethers');
 
-function Register() {
-  const [lawyers, setUsersLawyers] = useState([]);
-  const [clients, setUsersClients] = useState([]);
-  const [judges, setUsersJudge] = useState([]);
+export default function Casedetails(){
 
+  const location = useLocation();
+  const { caseInfo, id } = location.state || {};
+  const navigate = useNavigate();
+  const [documentId, setDocumentId] = useState(0);
   const [values, setValues] = useState({
     title: '',
     description: '',
@@ -23,40 +25,36 @@ function Register() {
   });
 
   useEffect(() => {
-    // List of clients
-    axios.post('http://localhost:3051/listofclient')
-      .then(response => {
-        setUsersClients(response.data);
-      })
-      .catch(error => {
-        console.error('Error:', error);
+    if (caseInfo) {
+      setValues({
+        title: caseInfo[0].TITLE || '',
+        description: caseInfo[0].DESCRIPTION || '',
+        client1: caseInfo[0].CLIENT1_NAME || '',
+        client2: caseInfo[0].CLIENT2_NAME || '',
+        lawyer1: caseInfo[0].LAYWER1_NAME || '',
+        lawyer2: caseInfo[0].LAYWER2_NAME || '',
+        judge: caseInfo[0].JUDGE_NAME || '',
+        status: caseInfo[0].STATUS || '',
+        judgement: caseInfo[0].JUDGEMENT || ''
       });
-
-    // List of lawyers
-    axios.post('http://localhost:3051/listoflawyer')
-      .then(response => {
-        setUsersLawyers(response.data);
-      })
-      .catch(error => {
-        console.error('Error:', error);
-      });
-
-    // List of judges
-    axios.post('http://localhost:3051/listofjudge')
-      .then(response => {
-        setUsersJudge(response.data);
-      })
-      .catch(error => {
-        console.error('Error:', error);
-      });
-  }, []);
+    }
+  }, [caseInfo]);
+  
+  useEffect(() => {
+    axios.get(`http://localhost:3051/getdocumentid?id=${id}`)
+    .then(response => {
+      setDocumentId(response.data);
+    }).catch(error => {
+      console.error(error);
+    })
+  },[documentId]);
 
   const handleInput = (event) => {
-    const { name, value } = event.target;
-    setValues(prevValues => ({
-      ...prevValues,
-      [name]: value
-    }));
+      const { name, value } = event.target;
+      setValues(prevValues => ({
+        ...prevValues,
+        [name]: value
+      }));
   };
 
   const eth_call = async () => {
@@ -82,54 +80,49 @@ function Register() {
     event.preventDefault();
     await eth_call();
 
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
-    const signer = provider.getSigner();
-    const userContract = new ethers.Contract(
-      process.env.REACT_APP_DOCUMENT_STORAGE_CONTRACT_ADDRESS,
-      DocumentStorageAbi.abi,
-      signer
-    );
-
-    try {
-      axios.post('http://localhost:3051/documentstore', values)
+    try{
+      axios.post(`http://localhost:3051/updatedocument?id=${id}`, values)
         .then(res => {
           Swal.fire({
             title: 'Success',
-            text: 'Case Register Successfully.',
+            text: 'Document Updated Successfully.',
             icon: 'success',
             confirmButtonText: 'OK'
           });
-        })
-        .catch(err => {
+      })
+      .catch(err => {
           Swal.fire({
             title: 'Oops...',
             text: err.response.data.error, // Access error message property
             icon: 'error',
             confirmButtonText: 'OK'
-          });
         });
+      });
 
-      const tx = await userContract.uploadDocument(
-        values.title,
-        values.client1,
-        values.client2,
-        values.description,
-        values.status
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      const userContract = new ethers.Contract(
+          process.env.REACT_APP_DOCUMENT_STORAGE_CONTRACT_ADDRESS,
+          DocumentStorageAbi.abi,
+          signer
       );
-      console.log('Document Uploaded:', tx);
-    } catch (error) {
-      console.error('Error uploading document:', error);
+
+      const tx = await userContract.updateDocument(documentId, values.description, values.status);
+      console.log('Document Updated:', tx);
+      navigate('/home');
+    }catch(err){
+      console.error('Error updating document:', err);
     }
   };
 
-  return (
+  return(
     <div className='container'>
       <div className='con-down'>
         <h4 className='title'>Enter Case Details</h4>
         <form onSubmit={handleSubmit}>
           <div className='mb-3 input_div'>
             <label htmlFor="title" className="form-label field-label">Title</label>
-            <input type='text' placeholder='Enter title' name='title' value={values.title} onChange={handleInput} className='form-control rounded-0' id='title' />
+            <input type='text' name='title' value={values.title} onChange={handleInput} className='form-control rounded-0' id='title' />
           </div>
           <div className='mb-3 input_div'>
             <label htmlFor="description" className="form-label field-label">Description</label>
@@ -137,53 +130,23 @@ function Register() {
           </div>
           <div className='mb-3 input_div'>
             <label htmlFor="client1" className="form-label fw-bold field-label">Client 1</label>
-            <select id="client1" className="form-select" name="client1" onChange={handleInput}>
-              {clients.map((client, i) => (
-                <option key={i} value={client}>
-                  {client}
-                </option>
-              ))}
-            </select>
+            <input type='text' name='client1' value={values.client1} className='form-control rounded-0' id='client1' readOnly />
           </div>
           <div className='mb-3 input_div'>
             <label htmlFor="lawyer1" className="form-label field-label">Lawyer 1</label>
-            <select id="lawyer1" className="form-select" name="lawyer1" value={values.lawyer1} onChange={handleInput}>
-              {lawyers.map((lawyer, i) => (
-                <option key={i} value={lawyer}>
-                  {lawyer}
-                </option>
-              ))}
-            </select>
+            <input type='text' name='lawyer1' value={values.lawyer1} className='form-control rounded-0' id='lawyer1' readOnly />
           </div>
           <div className='mb-3 input_div'>
             <label htmlFor="client2" className="form-label field-label">Client 2</label>
-            <select id="client2" className="form-select" name="client2" value={values.client2} onChange={handleInput}>
-              {clients.map((client, i) => (
-                <option key={i} value={client}>
-                  {client}
-                </option>
-              ))}
-            </select>
+            <input type='text' name='client2' value={values.client2} className='form-control rounded-0' id='client2' readOnly />
           </div>
           <div className='mb-3 input_div'>
             <label htmlFor="lawyer2" className="form-label field-label">Lawyer 2</label>
-            <select id="lawyer2" className="form-select" name="lawyer2" value={values.lawyer2} onChange={handleInput}>
-              {lawyers.map((lawyer, i) => (
-                <option key={i} value={lawyer}>
-                  {lawyer}
-                </option>
-              ))}
-            </select>
+            <input type='text' name='lawyer2' value={values.lawyer2} className='form-control rounded-0' id='lawyer2' readOnly />
           </div>
           <div className='mb-3 input_div'>
             <label htmlFor="judge" className="form-label field-label">Judge</label>
-            <select name="judge" id="judge" className="form-select" value={values.judge} onChange={handleInput}>
-              {judges.map((judge, i) => (
-                <option key={i} value={judge}>
-                  {judge}
-                </option>
-              ))}
-            </select>
+            <input type='text' name='judge' value={values.judge} className='form-control rounded-0' id='judge' readOnly />
           </div>
           <div className="mb-3 input_div">
             <label htmlFor="status" className="form-label field-label">Status</label>
@@ -203,5 +166,3 @@ function Register() {
     </div>
   );
 }
-
-export default Register;
